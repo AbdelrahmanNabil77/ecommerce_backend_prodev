@@ -1,0 +1,6 @@
+# requirements.txt
+Django==4.2.7
+djangorestframework==3.14.0
+psycopg2-binary==2.9.7
+python-decouple==3.8  # for environment variables
+django-cors-headers==4.2.0  # for frontend integration
