@@ -8,6 +8,8 @@ from .models import Category, Product, ProductReview
 from .serializers import (CategorySerializer, ProductSerializer,
                          ProductReviewSerializer)
 from .permissions import IsOwnerOrReadOnly, IsProductOwnerOrAdmin
+from .filters import ProductFilter
+from .pagination import StandardResultsSetPagination
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.filter(is_active=True)
@@ -45,6 +47,33 @@ class ProductViewSet(viewsets.ModelViewSet):
         product = self.get_object()
         # Handle multiple image uploads
         return Response(status=status.HTTP_201_CREATED)
+    
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter,
+                      filters.OrderingFilter]
+    filterset_class = ProductFilter
+    pagination_class = StandardResultsSetPagination
+    
+    @action(detail=False, methods=['get'])
+    def featured(self, request):
+        featured_products = self.get_queryset().filter(
+            featured=True, 
+            status='published'
+        )[:10]
+        serializer = self.get_serializer(featured_products, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def on_sale(self, request):
+        on_sale_products = self.get_queryset().filter(
+            status='published',
+            compare_price__gt=models.F('price')
+        )
+        page = self.paginate_queryset(on_sale_products)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(on_sale_products, many=True)
+        return Response(serializer.data)
 
 class ProductReviewViewSet(viewsets.ModelViewSet):
     serializer_class = ProductReviewSerializer
