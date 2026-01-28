@@ -17,6 +17,7 @@ class Category(models.Model):
         indexes = [
             models.Index(fields=['slug']),
             models.Index(fields=['name']),
+            models.Index(fields=['parent', 'is_active']),
         ]
     
     def __str__(self):
@@ -58,6 +59,10 @@ class Product(models.Model):
             models.Index(fields=['status']),
             models.Index(fields=['created_at']),
             models.Index(fields=['price']),
+            models.Index(fields=['quantity', 'status']),  # For stock queries
+            models.Index(fields=['created_at', 'featured']),  # For homepage
+            models.Index(fields=['price', 'category']),  # For filtering
+            models.Index(fields=['sku', 'barcode'], name='sku_barcode_idx'),
         ]
         ordering = ['-created_at']
     
