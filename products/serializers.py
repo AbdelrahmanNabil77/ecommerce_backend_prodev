@@ -42,3 +42,19 @@ class ProductSerializer(serializers.ModelSerializer):
         model = Product
         fields = '__all__'
         read_only_fields = ('slug', 'created_by', 'created_at', 'updated_at')
+
+    class Meta:
+        model = Product
+        fields = '__all__'
+        swagger_schema_fields = {
+            'example': {
+                'name': 'Premium Wireless Headphones',
+                'description': 'Noise cancelling over-ear headphones',
+                'price': '299.99',
+                'compare_price': '399.99',
+                'sku': 'PHONES-001',
+                'quantity': 50,
+                'category': 1,
+                'status': 'published'
+            }
+        }
