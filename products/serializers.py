@@ -1,11 +1,26 @@
 from rest_framework import serializers
 from .models import Category, Product, ProductImage, ProductReview
+from django.utils.text import slugify
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = '__all__'
         read_only_fields = ('slug', 'created_at', 'updated_at')
+    
+    def create(self, validated_data):
+        # Generate slug from name
+        name = validated_data.get('name')
+        if name:
+            slug = slugify(name)
+            # Ensure slug is unique
+            original_slug = slug
+            counter = 1
+            while Category.objects.filter(slug=slug).exists():
+                slug = f"{original_slug}-{counter}"
+                counter += 1
+            validated_data['slug'] = slug
+        return super().create(validated_data)
 
 class ProductImageSerializer(serializers.ModelSerializer):
     class Meta:
