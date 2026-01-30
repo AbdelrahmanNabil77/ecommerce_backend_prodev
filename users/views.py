@@ -2,9 +2,12 @@ from django.shortcuts import render
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .serializers import RegisterSerializer, LoginSerializer, UserSerializer
+from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, AdminRegisterSerializer
 
 class RegisterView(generics.CreateAPIView):
+    """
+    Regular user registration - anyone can register
+    """
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
 
@@ -22,11 +25,21 @@ class RegisterView(generics.CreateAPIView):
             'refresh': str(refresh),
             'user': UserSerializer(user).data
         }, status=status.HTTP_201_CREATED)
+    
+class AdminRegisterView(generics.CreateAPIView):
+    """
+    Admin user registration - only existing admins can create new admins
+    """
+    serializer_class = AdminRegisterSerializer
+    permission_classes = [permissions.IsAdminUser]
 
 class LoginView(TokenObtainPairView):
     serializer_class = LoginSerializer
 
 class UserProfileView(generics.RetrieveUpdateAPIView):
+    """
+    User profile - user can view/update their own profile
+    """
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
 
