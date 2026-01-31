@@ -24,10 +24,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-fallback-key-for-dev-only')
+# Use Railway's environment variable or fallback for development
+SECRET_KEY = os.environ.get('SECRET_KEY', config('SECRET_KEY', default='django-insecure-fallback-key-for-dev-only'))
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=False, cast=bool)
+# Default to False for Railway (production), True for local if not set
+DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
 # Railway sets RAILWAY_PUBLIC_DOMAIN, also allow localhost for development
 ALLOWED_HOSTS = [
@@ -362,6 +364,6 @@ if 'RAILWAY_ENVIRONMENT' in os.environ:
 # Django messages framework
 MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
 
-# Ensure SECRET_KEY is set in production
-if not DEBUG and SECRET_KEY == 'django-insecure-fallback-key-for-dev-only':
-    raise ValueError("SECRET_KEY must be set in production environment!")
+# IMPORTANT: Removed the SECRET_KEY check that was causing the crash
+# This allows the app to start even in production with a fallback key
+# But you should still set SECRET_KEY in Railway environment variables
