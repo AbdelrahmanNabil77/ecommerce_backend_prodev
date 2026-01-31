@@ -14,6 +14,7 @@ from pathlib import Path
 import os
 import dj_database_url
 from decouple import config
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -23,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-&f=b1+!u&r3$2cri1d#6y1iq&k-=_hm(4hi@co84)0&r8o+h9&')
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-fallback-key-for-dev-only')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
@@ -33,25 +34,26 @@ ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     '.railway.app',  # All Railway domains
-    '.vercel.app',   # Vercel domains
-    '.onrender.com', # Render domains
-    '.herokuapp.com', # Heroku domains
 ]
 
 # Add Railway's public domain if available
-if 'RAILWAY_PUBLIC_DOMAIN' in os.environ:
-    ALLOWED_HOSTS.append(os.environ['RAILWAY_PUBLIC_DOMAIN'])
+if 'RAILWAY_STATIC_URL' in os.environ:
+    ALLOWED_HOSTS.append(os.environ['RAILWAY_STATIC_URL'].replace('https://', '').replace('http://', '').split('/')[0])
 
 # Add custom domain if set
-if 'CUSTOM_DOMAIN' in os.environ:
-    ALLOWED_HOSTS.append(os.environ['CUSTOM_DOMAIN'])
+if 'RAILWAY_PUBLIC_DOMAIN' in os.environ:
+    domain = os.environ['RAILWAY_PUBLIC_DOMAIN']
+    ALLOWED_HOSTS.append(domain)
+    if domain.startswith('www.'):
+        ALLOWED_HOSTS.append(domain[4:])
+    else:
+        ALLOWED_HOSTS.append(f'www.{domain}')
 
 # For development only, allow all in debug mode
 if DEBUG:
     ALLOWED_HOSTS.append('*')
 
 # Application definition
-
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -61,7 +63,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     
     # Third-party apps
-    'drf_yasg',
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
@@ -96,8 +97,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'django.template.context_processors.media',  # For media files
-                'django.template.context_processors.static',  # For static files
+                'django.template.context_processors.media',
+                'django.template.context_processors.static',
             ],
         },
     },
@@ -105,17 +106,25 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'ecommerce.wsgi.application'
 
-
 # Database Configuration
-# Railway provides DATABASE_URL, otherwise use local PostgreSQL
-DATABASE_URL = os.environ.get('DATABASE_URL')
-
-if DATABASE_URL:
+# Railway provides DATABASE_URL - use it with highest priority
+if 'DATABASE_URL' in os.environ:
     # Parse DATABASE_URL from Railway
     DATABASES = {
         'default': dj_database_url.config(
-            default=DATABASE_URL,
+            default=os.environ['DATABASE_URL'],
             conn_max_age=600,
+            conn_health_checks=True,
+            ssl_require=True
+        )
+    }
+elif 'DATABASE_PUBLIC_URL' in os.environ:
+    # Fallback to DATABASE_PUBLIC_URL if DATABASE_URL not set
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=os.environ['DATABASE_PUBLIC_URL'],
+            conn_max_age=600,
+            conn_health_checks=True,
             ssl_require=True
         )
     }
@@ -124,9 +133,9 @@ else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': config('DB_NAME', default='ecommerce'),
+            'NAME': config('DB_NAME', default='railway'),
             'USER': config('DB_USER', default='postgres'),
-            'PASSWORD': config('DB_PASSWORD', default=''),
+            'PASSWORD': config('DB_PASSWORD', default='RpDoBBEscsLTqSErVOfkABEfUvCzrNQn'),
             'HOST': config('DB_HOST', default='localhost'),
             'PORT': config('DB_PORT', default='5432'),
         }
@@ -136,11 +145,9 @@ else:
 if DEBUG:
     print(f"Database Engine: {DATABASES['default']['ENGINE']}")
     print(f"Database Name: {DATABASES['default'].get('NAME', 'Not set')}")
-
+    print(f"Database Host: {DATABASES['default'].get('HOST', 'Not set')}")
 
 # Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -156,27 +163,21 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
-
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'UTC'
-
 USE_I18N = True
-
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
-
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
-]
+
+# Only set STATICFILES_DIRS if the directory exists
+if os.path.exists(os.path.join(BASE_DIR, 'static')):
+    STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+else:
+    STATICFILES_DIRS = []
 
 # WhiteNoise configuration
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
@@ -186,8 +187,6 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'users.User'
 
@@ -209,7 +208,6 @@ REST_FRAMEWORK = {
 }
 
 # JWT Configuration
-from datetime import timedelta
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
@@ -241,33 +239,27 @@ CORS_ALLOW_ALL_ORIGINS = DEBUG  # Allow all in debug mode
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://your-frontend-domain.com",  # Add your frontend domain
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
 ]
 
-# Swagger/OpenAPI Settings
-SWAGGER_SETTINGS = {
-    'SECURITY_DEFINITIONS': {
-        'Bearer': {
-            'type': 'apiKey',
-            'name': 'Authorization',
-            'in': 'header'
-        }
-    },
-    'USE_SESSION_AUTH': False,
-    'JSON_EDITOR': True,
-    'DOC_EXPANSION': 'list',
-    'DEFAULT_MODEL_RENDERING': 'example',
-    'PERSIST_AUTH': True,
-    'REFETCH_SCHEMA_ON_LOGOUT': True,
-}
+# Add Railway domains to CORS
+if 'RAILWAY_STATIC_URL' in os.environ:
+    CORS_ALLOWED_ORIGINS.append(os.environ['RAILWAY_STATIC_URL'].rstrip('/'))
 
-# Cache Configuration (using local memory cache)
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'unique-snowflake',
-    }
-}
+if 'RAILWAY_PUBLIC_DOMAIN' in os.environ:
+    CORS_ALLOWED_ORIGINS.append(f"https://{os.environ['RAILWAY_PUBLIC_DOMAIN']}")
+    CORS_ALLOWED_ORIGINS.append(f"http://{os.environ['RAILWAY_PUBLIC_DOMAIN']}")
+
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
 
 # Security settings for production
 if not DEBUG:
@@ -286,9 +278,22 @@ if not DEBUG:
     
     # Restrict CORS in production
     CORS_ALLOW_ALL_ORIGINS = False
-    CORS_ALLOW_CREDENTIALS = True
-    
-# Email Configuration (if needed)
+
+# CSRF Trusted Origins
+CSRF_TRUSTED_ORIGINS = [
+    'https://*.railway.app',
+    'http://*.railway.app',
+]
+
+# Add specific Railway domain if available
+if 'RAILWAY_PUBLIC_DOMAIN' in os.environ:
+    CSRF_TRUSTED_ORIGINS.append(f'https://{os.environ["RAILWAY_PUBLIC_DOMAIN"]}')
+    CSRF_TRUSTED_ORIGINS.append(f'http://{os.environ["RAILWAY_PUBLIC_DOMAIN"]}')
+
+if 'RAILWAY_STATIC_URL' in os.environ:
+    CSRF_TRUSTED_ORIGINS.append(os.environ['RAILWAY_STATIC_URL'])
+
+# Email Configuration
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend' if DEBUG else 'django.core.mail.backends.smtp.EmailBackend'
 
 # Logging Configuration
@@ -310,11 +315,6 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'simple',
         },
-        'file': {
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'debug.log'),
-            'formatter': 'verbose',
-        },
     },
     'loggers': {
         'django': {
@@ -322,28 +322,18 @@ LOGGING = {
             'level': 'INFO',
         },
         'ecommerce': {
-            'handlers': ['console', 'file'],
+            'handlers': ['console'],
             'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },
     },
 }
 
-# Additional Django settings
-CSRF_TRUSTED_ORIGINS = [
-    'https://*.railway.app',
-    'https://*.vercel.app',
-    'https://*.onrender.com',
-]
-
-# Django messages framework
-MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
-
 # File upload settings
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
 
-# Authentication URLs (for password reset, etc.)
+# Authentication URLs
 LOGIN_URL = '/admin/login/'
 LOGOUT_URL = '/admin/logout/'
 LOGIN_REDIRECT_URL = '/'
@@ -352,15 +342,26 @@ LOGOUT_REDIRECT_URL = '/'
 # Railway specific optimization
 if 'RAILWAY_ENVIRONMENT' in os.environ:
     # Optimize for Railway's environment
-    DATABASES['default']['CONN_MAX_AGE'] = 600  # Keep connections alive
+    DATABASES['default']['CONN_MAX_AGE'] = 600
     DATABASES['default']['OPTIONS'] = {
         'connect_timeout': 10,
+        'keepalives': 1,
+        'keepalives_idle': 30,
+        'keepalives_interval': 10,
+        'keepalives_count': 5,
     }
     
-    # Ensure we're using PostgreSQL pool if available
+    # Use connection pool if available
     if 'DATABASE_CONNECTION_POOL_URL' in os.environ:
         DATABASES['default'] = dj_database_url.config(
             default=os.environ['DATABASE_CONNECTION_POOL_URL'],
             conn_max_age=600,
             ssl_require=True
         )
+
+# Django messages framework
+MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
+
+# Ensure SECRET_KEY is set in production
+if not DEBUG and SECRET_KEY == 'django-insecure-fallback-key-for-dev-only':
+    raise ValueError("SECRET_KEY must be set in production environment!")
