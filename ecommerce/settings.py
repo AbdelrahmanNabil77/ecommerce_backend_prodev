@@ -288,12 +288,14 @@ if not DEBUG:
 CSRF_TRUSTED_ORIGINS = [
     'https://*.railway.app',
     'http://*.railway.app',
+    'https://ecommercebackendprodev-production.up.railway.app'
 ]
 
 # Add specific Railway domain if available
 if 'RAILWAY_PUBLIC_DOMAIN' in os.environ:
     CSRF_TRUSTED_ORIGINS.append(f'https://{os.environ["RAILWAY_PUBLIC_DOMAIN"]}')
     CSRF_TRUSTED_ORIGINS.append(f'http://{os.environ["RAILWAY_PUBLIC_DOMAIN"]}')
+    CSRF_TRUSTED_ORIGINS.append(f'https://ecommercebackendprodev-production.up.railway.app')
 
 if 'RAILWAY_STATIC_URL' in os.environ:
     CSRF_TRUSTED_ORIGINS.append(os.environ['RAILWAY_STATIC_URL'])
