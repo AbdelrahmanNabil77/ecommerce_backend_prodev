@@ -38,6 +38,9 @@ ALLOWED_HOSTS = [
     '.railway.app',  # All Railway domains
 ]
 
+CSRF_TRUSTED_ORIGINS = ['https://ecommercebackendprodev-production.up.railway.app']
+CORS_ALLOWED_ORIGINS = ['https://ecommercebackendprodev-production.up.railway.app']
+
 # Add Railway's public domain if available
 if 'RAILWAY_STATIC_URL' in os.environ:
     ALLOWED_HOSTS.append(os.environ['RAILWAY_STATIC_URL'].replace('https://', '').replace('http://', '').split('/')[0])
